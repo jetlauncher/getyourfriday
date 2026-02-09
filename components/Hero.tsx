@@ -27,7 +27,7 @@ export default function Hero() {
 
           <div className="mb-8 md:mb-12">
             <p className="text-xl md:text-3xl font-semibold text-gold">
-              เริ่มต้นเพียง ฿5,000<span className="text-lg text-cream/60">/เดือน</span>
+              Setup ฿35,000 + <span className="text-lg text-cream/60">฿5,000/เดือน</span>
             </p>
           </div>
 
