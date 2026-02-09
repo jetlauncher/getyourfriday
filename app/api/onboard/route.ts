@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '8517085802:AAELVHqHChwkMi9wQLlpLBZ9yFrK0_RVb58'
+const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '8477111494:AAGRT3BQE3MMF6_uPyBaqRCfoQEhHKv2flg'
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID || '1460936021'
 
 async function sendTelegramNotification(data: any) {
