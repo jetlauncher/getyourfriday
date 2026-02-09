@@ -1,0 +1,14 @@
+{
+  "businessName": "Beauty Clinic XYZ",
+  "industry": "คลินิค",
+  "teamSize": "6-20",
+  "needs": ["customer-support", "scheduling", "content"],
+  "otherNeed": "",
+  "channels": ["telegram", "line"],
+  "telegramUsername": "beautyclinic",
+  "lineOAID": "@beautyclinic",
+  "customerName": "คุณสมศรี ใจดี",
+  "phone": "0891234567",
+  "email": "somsri@beauty.co.th",
+  "mainNeed": "ต้องการให้ช่วยตอบแชทลูกค้าใน LINE และจัดการนัดหมาย"
+}

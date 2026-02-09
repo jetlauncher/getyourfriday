@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useState, Suspense } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
 interface FormData {
@@ -45,10 +45,9 @@ const channelOptions = [
   { id: 'line', label: 'LINE' },
 ]
 
-export default function OnboardPage() {
+function OnboardForm() {
   const router = useRouter()
-  const searchParams = useSearchParams()
-  const plan = searchParams.get('plan') || 'starter'
+  const plan = 'starter'
 
   const [step, setStep] = useState(1)
   const [loading, setLoading] = useState(false)
@@ -462,5 +461,17 @@ export default function OnboardPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function OnboardPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[#0A0A1A] flex items-center justify-center">
+        <div className="text-[#B8963E] text-xl">กำลังโหลด...</div>
+      </div>
+    }>
+      <OnboardForm />
+    </Suspense>
   )
 }

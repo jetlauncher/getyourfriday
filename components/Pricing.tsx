@@ -1,75 +1,128 @@
 'use client'
 
+import Link from 'next/link'
+
 export default function Pricing() {
+  const plans = [
+    {
+      name: 'Starter',
+      setupFee: '9,900',
+      price: '2,900',
+      period: '/เดือน',
+      features: [
+        '1 AI Assistant',
+        'Telegram integration',
+        'Basic automations',
+        'Memory & context',
+        'Email support',
+      ],
+      highlight: false,
+      planId: 'starter',
+    },
+    {
+      name: 'Business',
+      setupFee: '19,900',
+      price: '5,900',
+      period: '/เดือน',
+      features: [
+        '3 AI Assistants',
+        'LINE + Telegram',
+        'Advanced automations',
+        'Priority support',
+        'Custom workflows',
+        'Team collaboration',
+      ],
+      highlight: true,
+      planId: 'business',
+    },
+    {
+      name: 'Enterprise',
+      setupFee: '49,900',
+      price: '14,900',
+      period: '/เดือน',
+      features: [
+        'Unlimited AI Assistants',
+        'Custom integrations',
+        'Dedicated support',
+        'API access',
+        'White-label option',
+        'SLA guarantee',
+      ],
+      highlight: false,
+      planId: 'enterprise',
+    },
+  ]
+
   return (
-    <section id="pricing" className="section-padding bg-navy/50">
+    <section className="section-padding bg-navy/50">
       <div className="container-custom">
         <h2 className="text-3xl md:text-5xl font-bold text-center mb-4">
-          <span className="gradient-text">ลงทุนครั้งเดียว</span> ได้พนักงานตลอดชีพ
+          แพ็กเกจที่<span className="gradient-text">เหมาะกับคุณ</span>
         </h2>
         <p className="text-center text-cream/70 mb-12 md:mb-16 text-base md:text-lg">
-          Setup ครั้งเดียว + ดูแลรายเดือน — ถูกกว่าจ้างพนักงาน 5 เท่า
+          เลือกแผนที่เหมาะกับธุรกิจของคุณ ยกเลิกได้ทุกเมื่อ
         </p>
 
-        {/* Single Plan */}
-        <div className="max-w-lg mx-auto mb-12 md:mb-16">
-          <div className="bg-gradient-to-br from-gold/20 to-gold/5 border-2 border-gold rounded-2xl p-8 md:p-10 shadow-2xl shadow-gold/30">
-            <div className="text-center mb-2">
-              <span className="bg-gold text-navy px-4 py-1 rounded-full text-sm font-bold">
-                GET YOUR FRIDAY
-              </span>
-            </div>
-
-            <h3 className="text-2xl md:text-3xl font-bold mb-6 text-center text-cream mt-4">
-              AI Executive Assistant
-            </h3>
-
-            {/* Setup Fee */}
-            <div className="text-center mb-2">
-              <span className="text-cream/60 text-sm uppercase tracking-wider">ค่า Setup (ครั้งเดียว)</span>
-            </div>
-            <div className="text-center mb-6">
-              <span className="text-5xl md:text-6xl font-bold text-gold">
-                ฿35,000
-              </span>
-            </div>
-
-            {/* Monthly */}
-            <div className="text-center mb-8 pb-8 border-b border-gold/30">
-              <span className="text-cream/60 text-sm">+ ดูแลรายเดือน </span>
-              <span className="text-2xl md:text-3xl font-bold text-cream">
-                ฿5,000
-              </span>
-              <span className="text-cream/60 text-lg">/เดือน</span>
-            </div>
-
-            <ul className="space-y-4 mb-8">
-              {[
-                'AI Assistant ส่วนตัวสำหรับธุรกิจคุณ',
-                'จำทุกอย่างเกี่ยวกับธุรกิจ (Memory)',
-                'ใช้งานผ่าน Telegram / LINE ได้ทันที',
-                'ทำงาน 24/7 ไม่มีวันหยุด',
-                'ตอบแชทลูกค้า ติดตาม Sales',
-                'สรุปรายงาน วิเคราะห์ข้อมูล',
-                'เขียน Content โพสต์โซเชียล',
-                'จัดการนัดหมาย ติดตามงาน',
-                'Setup เสร็จภายใน 24 ชั่วโมง',
-                'ซัพพอร์ตตลอด ยกเลิกได้ทุกเมื่อ',
-              ].map((feature, i) => (
-                <li key={i} className="flex items-start text-sm md:text-base">
-                  <span className="text-gold mr-3 mt-1 flex-shrink-0">✓</span>
-                  <span className="text-cream/80">{feature}</span>
-                </li>
-              ))}
-            </ul>
-
-            <a
-              href="/onboard"
-              className="block w-full py-4 rounded-full font-semibold text-center transition-all duration-300 bg-gold text-navy hover:bg-gold/90 shadow-lg text-lg"
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8 mb-12 md:mb-16">
+          {plans.map((plan, index) => (
+            <div
+              key={index}
+              className={`rounded-2xl p-6 md:p-8 transition-all duration-300 ${
+                plan.highlight
+                  ? 'bg-gradient-to-br from-gold/20 to-gold/5 border-2 border-gold transform md:scale-105 shadow-2xl shadow-gold/30'
+                  : 'bg-navy border border-gold/20 hover:border-gold/50'
+              }`}
             >
-              เริ่มต้นใช้งาน Friday →
-            </a>
-          </div>
+              {plan.highlight && (
+                <div className="text-center mb-4">
+                  <span className="bg-gold text-navy px-4 py-1 rounded-full text-sm font-bold">
+                    POPULAR
+                  </span>
+                </div>
+              )}
+
+              <h3 className="text-2xl md:text-3xl font-bold mb-2 text-center text-gold">
+                {plan.name}
+              </h3>
+
+              <div className="text-center mb-4">
+                <div className="text-sm text-cream/60 mb-1">ค่าติดตั้ง</div>
+                <div className="text-2xl font-bold text-cream/80">
+                  ฿{plan.setupFee}
+                </div>
+              </div>
+
+              <div className="text-center mb-6 md:mb-8 pb-6 border-b border-gold/20">
+                <div className="text-sm text-cream/60 mb-1">รายเดือน</div>
+                <div>
+                  <span className="text-4xl md:text-5xl font-bold text-cream">
+                    ฿{plan.price}
+                  </span>
+                  <span className="text-cream/60 text-lg">{plan.period}</span>
+                </div>
+              </div>
+
+              <ul className="space-y-4 mb-8">
+                {plan.features.map((feature, i) => (
+                  <li key={i} className="flex items-start text-sm md:text-base">
+                    <span className="text-gold mr-3 mt-1 flex-shrink-0">✓</span>
+                    <span className="text-cream/80">{feature}</span>
+                  </li>
+                ))}
+              </ul>
+
+              <Link
+                href={`/onboard?plan=${plan.planId}`}
+                className={`block w-full py-3 md:py-4 rounded-full font-semibold transition-all duration-300 text-center ${
+                  plan.highlight
+                    ? 'bg-gold text-navy hover:bg-gold/90 shadow-lg'
+                    : 'bg-navy border-2 border-gold text-gold hover:bg-gold hover:text-navy'
+                }`}
+              >
+                เริ่มใช้งาน
+              </Link>
+            </div>
+          ))}
         </div>
 
         {/* Comparison */}
@@ -94,16 +147,9 @@ export default function Pricing() {
               <span>💔 ความเสี่ยงลาออก</span>
               <span className="text-red-400 font-semibold">สูง</span>
             </div>
-            <div className="flex justify-between items-center pb-3 border-b border-gold/20">
-              <span>📚 Training พนักงานใหม่</span>
-              <span className="text-red-400 font-semibold">1-3 เดือน</span>
-            </div>
             <div className="flex justify-between items-center pt-3">
-              <span className="font-bold text-gold">⚡ Friday AI Assistant</span>
-              <span className="text-gold font-bold text-xl">฿5,000/เดือน</span>
-            </div>
-            <div className="text-center pt-4 text-cream/50 text-sm">
-              * Setup ฿35,000 ครั้งเดียว — เทียบเท่า training พนักงานใหม่ 2 สัปดาห์
+              <span className="font-bold text-gold">⚡ Friday AI Assistant (Starter)</span>
+              <span className="text-gold font-bold text-xl">฿2,900/เดือน</span>
             </div>
           </div>
         </div>
