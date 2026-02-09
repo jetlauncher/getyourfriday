@@ -12,9 +12,9 @@ async function sendTelegramNotification(data: any) {
 👥 *ขนาดทีม:* ${data.teamSize}
 
 📋 *ต้องการ:* ${needs}
-💬 *ช่องทาง:* ${data.channel}
+💬 *ช่องทาง:* ${Array.isArray(data.channels) ? data.channels.join(', ') : data.channels}
 ${data.telegramUsername ? `📱 *Telegram:* @${data.telegramUsername}` : ''}
-${data.lineOaId ? `💚 *LINE OA:* ${data.lineOaId}` : ''}
+${data.lineOAID ? `💚 *LINE OA:* ${data.lineOAID}` : ''}
 
 👤 *ชื่อ:* ${data.customerName}
 📞 *โทร:* ${data.phone}
@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
     const data = await request.json()
 
     // Validate required fields
-    const required = ['businessName', 'industry', 'teamSize', 'needs', 'channel', 'customerName', 'phone', 'email', 'mainNeed']
+    const required = ['businessName', 'industry', 'teamSize', 'needs', 'channels', 'customerName', 'phone', 'email', 'mainNeed']
     for (const field of required) {
       if (!data[field]) {
         return NextResponse.json(
