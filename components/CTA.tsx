@@ -9,20 +9,23 @@ export default function CTA() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    // Reset previous errors
+    setMessage('')
     setStatus('loading')
 
     try {
       const response = await fetch('/api/waitlist', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email: email.toLowerCase().trim() }),
       })
 
       const data = await response.json()
 
       if (response.ok) {
         setStatus('success')
-        setMessage('🎉 สำเร็จ! เราจะติดต่อคุณเร็วๆ นี้')
+        setMessage('🎉 ลงทะเบียนสำเร็จ! เราจะติดต่อคุณเร็วๆ นี้')
         setEmail('')
       } else {
         setStatus('error')
@@ -30,12 +33,16 @@ export default function CTA() {
       }
     } catch (error) {
       setStatus('error')
-      setMessage('เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง')
+      setMessage('เกิดข้อผิดพลาดในการเชื่อมต่อ กรุณาลองใหม่อีกครั้ง')
+      console.error('Signup error:', error)
     }
 
+    // Clear message after 5 seconds (but keep success state)
     setTimeout(() => {
-      setStatus('idle')
       setMessage('')
+      if (status === 'error') {
+        setStatus('idle')
+      }
     }, 5000)
   }
 
@@ -59,23 +66,29 @@ export default function CTA() {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="อีเมลของคุณ"
                 required
-                disabled={status === 'loading'}
-                className="flex-1 px-6 py-4 rounded-full bg-navy border-2 border-gold/30 text-cream placeholder:text-cream/40 focus:outline-none focus:border-gold transition-all duration-300 disabled:opacity-50"
+                disabled={status === 'loading' || status === 'success'}
+                className="flex-1 px-6 py-4 rounded-full bg-navy border-2 border-gold/30 text-cream placeholder:text-cream/40 focus:outline-none focus:border-gold transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
               />
               <button
                 type="submit"
-                disabled={status === 'loading'}
-                className="px-8 py-4 bg-gold hover:bg-gold/90 text-navy font-semibold rounded-full transition-all duration-300 transform hover:scale-105 shadow-xl disabled:opacity-50 disabled:hover:scale-100"
+                disabled={status === 'loading' || status === 'success'}
+                className="px-8 py-4 bg-gold hover:bg-gold/90 text-navy font-semibold rounded-full transition-all duration-300 transform hover:scale-105 shadow-xl disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed whitespace-nowrap"
               >
-                {status === 'loading' ? 'กำลังส่ง...' : 'สมัคร Early Access'}
+                {status === 'loading' && '⏳ กำลังส่ง...'}
+                {status === 'success' && '✅ สำเร็จ!'}
+                {(status === 'idle' || status === 'error') && 'สมัคร Early Access'}
               </button>
             </div>
           </form>
 
           {message && (
-            <div className={`p-4 rounded-lg ${
-              status === 'success' ? 'bg-green-500/20 text-green-300' : 'bg-red-500/20 text-red-300'
-            }`}>
+            <div 
+              className={`p-4 rounded-lg animate-fade-in ${
+                status === 'success' 
+                  ? 'bg-green-500/20 text-green-300 border border-green-500/30' 
+                  : 'bg-red-500/20 text-red-300 border border-red-500/30'
+              }`}
+            >
               {message}
             </div>
           )}
@@ -91,6 +104,22 @@ export default function CTA() {
           </div>
         </div>
       </div>
+
+      <style jsx>{`
+        @keyframes fade-in {
+          from {
+            opacity: 0;
+            transform: translateY(-10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        .animate-fade-in {
+          animation: fade-in 0.3s ease-out;
+        }
+      `}</style>
     </section>
   )
 }
