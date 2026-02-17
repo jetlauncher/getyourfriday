@@ -23,7 +23,7 @@ ${data.lineOAID ? `💚 *LINE OA:* ${data.lineOAID}` : ''}
 💡 *สิ่งที่ต้องการมากที่สุด:*
 ${data.mainNeed}
 
-💰 *แพ็กเกจ:* Setup ฿35,000 + ฿5,000/เดือน
+💰 *แพ็กเกจ:* ฿1,490/เดือน (ทดลองฟรี 7 วัน)
 
 ⚡ *Action:* Provision agent NOW!`
 
