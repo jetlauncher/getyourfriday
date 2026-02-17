@@ -1,15 +1,9 @@
 'use client'
 
-import { useState, useEffect, Suspense } from 'react'
+import { useState, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 
-interface CustomerData {
-  customerName: string
-  businessName: string
-  telegramUsername: string
-}
-
-interface SetupState {
+interface FormData {
   agentName: string
   useCases: string[]
   botToken: string
@@ -17,525 +11,427 @@ interface SetupState {
   botName: string
 }
 
-const USE_CASE_OPTIONS = [
-  { id: 'customer-chat', label: '💬 ตอบแชทลูกค้า', value: 'customer-chat' },
+const useCaseOptions = [
+  { id: 'customer-support', label: '💬 ตอบแชทลูกค้า', value: 'customer-support' },
   { id: 'scheduling', label: '📅 จัดการนัดหมาย', value: 'scheduling' },
-  { id: 'reporting', label: '📊 สรุปรายงาน', value: 'reporting' },
-  { id: 'leads', label: '🎯 ติดตาม Leads', value: 'leads' },
+  { id: 'analytics', label: '📊 สรุปรายงาน', value: 'analytics' },
+  { id: 'leads', label: '🎯 ติดตาม leads', value: 'leads' },
 ]
 
-function SetupWizard() {
+function SetupForm() {
   const searchParams = useSearchParams()
   const token = searchParams.get('token') || ''
+  const customerName = searchParams.get('name') || 'ลูกค้า'
+  const businessName = searchParams.get('business') || 'ธุรกิจ'
 
   const [step, setStep] = useState(1)
-  const [customer, setCustomer] = useState<CustomerData | null>(null)
-  const [loadingCustomer, setLoadingCustomer] = useState(true)
-  const [tokenError, setTokenError] = useState(false)
-
-  const [setup, setSetup] = useState<SetupState>({
+  const [loading, setLoading] = useState(false)
+  const [verifying, setVerifying] = useState(false)
+  const [verified, setVerified] = useState(false)
+  const [formData, setFormData] = useState<FormData>({
     agentName: 'Friday',
     useCases: [],
     botToken: '',
     botUsername: '',
     botName: '',
   })
+  const [error, setError] = useState('')
 
-  const [verifyingToken, setVerifyingToken] = useState(false)
-  const [tokenValid, setTokenValid] = useState<boolean | null>(null)
-  const [tokenError2, setTokenError2] = useState('')
-  const [progress, setProgress] = useState(0)
-  const [completing, setCompleting] = useState(false)
+  const totalSteps = 6
 
-  // Load customer data from token
-  useEffect(() => {
-    if (!token) {
-      setTokenError(true)
-      setLoadingCustomer(false)
-      return
-    }
-    fetch(`/api/setup/customer?token=${token}`)
-      .then(r => r.json())
-      .then(data => {
-        if (data.error) {
-          setTokenError(true)
-        } else {
-          setCustomer(data)
-        }
-        setLoadingCustomer(false)
-      })
-      .catch(() => {
-        setTokenError(true)
-        setLoadingCustomer(false)
-      })
-  }, [token])
+  const updateField = (field: keyof FormData, value: any) => {
+    setFormData((prev) => ({ ...prev, [field]: value }))
+    setError('')
+  }
 
-  const verifyBotToken = async () => {
-    if (!setup.botToken.trim()) return
-    setVerifyingToken(true)
-    setTokenValid(null)
-    setTokenError2('')
+  const toggleUseCase = (useCase: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      useCases: prev.useCases.includes(useCase)
+        ? prev.useCases.filter((u) => u !== useCase)
+        : [...prev.useCases, useCase],
+    }))
+  }
+
+  const canProceed = () => {
+    if (step === 1) return true
+    if (step === 2) return formData.agentName.trim().length > 0
+    if (step === 3) return formData.useCases.length > 0
+    if (step === 4) return verified && formData.botToken
+    if (step === 5) return true
+    return false
+  }
+
+  const verifyToken = async () => {
+    if (!formData.botToken) return
+
+    setVerifying(true)
+    setError('')
+
     try {
-      const res = await fetch('/api/setup/verify-token', {
+      const response = await fetch('/api/setup/verify-token', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ botToken: setup.botToken.trim() }),
+        body: JSON.stringify({ botToken: formData.botToken }),
       })
-      const data = await res.json()
+
+      const data = await response.json()
+
       if (data.valid) {
-        setTokenValid(true)
-        setSetup(s => ({ ...s, botUsername: data.username, botName: data.botName }))
+        setVerified(true)
+        updateField('botUsername', data.username)
+        updateField('botName', data.botName)
       } else {
-        setTokenValid(false)
-        setTokenError2(data.message || 'Token ไม่ถูกต้อง กรุณาตรวจสอบอีกครั้ง')
+        setError(data.error || 'Token ไม่ถูกต้อง')
+        setVerified(false)
       }
-    } catch {
-      setTokenValid(false)
-      setTokenError2('เกิดข้อผิดพลาด กรุณาลองใหม่')
+    } catch (err) {
+      setError('เกิดข้อผิดพลาด กรุณาลองใหม่')
+      setVerified(false)
     } finally {
-      setVerifyingToken(false)
+      setVerifying(false)
     }
   }
 
   const completeSetup = async () => {
     setStep(5)
-    setCompleting(true)
-
-    // Animate progress bar
-    let p = 0
-    const interval = setInterval(() => {
-      p += Math.random() * 15
-      if (p >= 90) { clearInterval(interval); p = 90 }
-      setProgress(Math.min(p, 90))
-    }, 400)
+    setLoading(true)
 
     try {
-      await fetch('/api/setup/complete', {
+      const response = await fetch('/api/setup/complete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           token,
-          agentName: setup.agentName,
-          useCases: setup.useCases,
-          botToken: setup.botToken,
-          botUsername: setup.botUsername,
+          agentName: formData.agentName,
+          useCases: formData.useCases,
+          botToken: formData.botToken,
+          botUsername: formData.botUsername,
+          customerName,
+          businessName,
         }),
       })
-      clearInterval(interval)
-      setProgress(100)
-      setTimeout(() => setStep(6), 800)
-    } catch {
-      clearInterval(interval)
-      setProgress(100)
-      setTimeout(() => setStep(6), 800)
+
+      const data = await response.json()
+
+      if (data.success) {
+        setStep(6)
+      } else {
+        setError('เกิดข้อผิดพลาด กรุณาลองใหม่')
+        setStep(4)
+      }
+    } catch (err) {
+      setError('เกิดข้อผิดพลาด กรุณาลองใหม่')
+      setStep(4)
+    } finally {
+      setLoading(false)
     }
   }
 
-  const toggleUseCase = (value: string) => {
-    setSetup(s => ({
-      ...s,
-      useCases: s.useCases.includes(value)
-        ? s.useCases.filter(u => u !== value)
-        : [...s.useCases, value],
-    }))
-  }
-
-  if (loadingCustomer) {
-    return (
-      <div className="min-h-screen bg-navy flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-gold border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-cream/60">กำลังโหลด...</p>
-        </div>
-      </div>
-    )
-  }
-
-  if (tokenError) {
-    return (
-      <div className="min-h-screen bg-navy flex items-center justify-center p-6">
-        <div className="text-center max-w-md">
-          <div className="text-6xl mb-4">❌</div>
-          <h1 className="text-2xl font-bold text-cream mb-2">ลิงก์ไม่ถูกต้อง</h1>
-          <p className="text-cream/60">กรุณาใช้ลิงก์ที่ได้รับจากอีเมลยืนยันการชำระเงิน</p>
-          <p className="text-cream/40 text-sm mt-4">หากต้องการความช่วยเหลือ ติดต่อ @FridaySupport</p>
-        </div>
-      </div>
-    )
-  }
-
   return (
-    <div className="min-h-screen bg-navy">
-      {/* Progress bar at top */}
-      {step <= 4 && (
-        <div className="fixed top-0 left-0 right-0 z-50">
-          <div className="h-1 bg-navy/80">
-            <div
-              className="h-full bg-gradient-to-r from-gold to-yellow-400 transition-all duration-500"
-              style={{ width: `${(step / 4) * 100}%` }}
-            />
-          </div>
-        </div>
-      )}
+    <div className="min-h-screen bg-[#0A0A1A] py-8 px-4">
+      {/* Header */}
+      <div className="max-w-2xl mx-auto mb-8">
+        <h1 className="text-3xl md:text-4xl font-bold text-[#EDE3D0] mb-2">
+          ตั้งค่า Friday
+        </h1>
+        <p className="text-[#EDE3D0]/70">
+          สร้าง AI Assistant สำหรับ {businessName}
+        </p>
+      </div>
 
-      <div className="max-w-lg mx-auto px-6 py-12 pt-16">
-
-        {/* Step indicators */}
-        {step <= 4 && (
-          <div className="flex items-center justify-center gap-2 mb-8">
-            {[1, 2, 3, 4].map(s => (
-              <div key={s} className="flex items-center">
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all ${
-                  s < step ? 'bg-gold text-navy' :
-                  s === step ? 'bg-gold text-navy ring-4 ring-gold/30' :
-                  'bg-navy-800 text-cream/30 border border-cream/10'
-                }`}>
-                  {s < step ? '✓' : s}
-                </div>
-                {s < 4 && <div className={`w-8 h-px mx-1 ${s < step ? 'bg-gold' : 'bg-cream/10'}`} />}
+      {/* Progress Bar */}
+      <div className="max-w-2xl mx-auto mb-8">
+        <div className="flex items-center justify-between mb-2">
+          {[1, 2, 3, 4, 5, 6].map((s) => (
+            <div key={s} className="flex items-center flex-1">
+              <div
+                className={`w-8 h-8 rounded-full flex items-center justify-center font-semibold transition-all text-sm ${
+                  s <= step
+                    ? 'bg-[#B8963E] text-[#0A0A1A]'
+                    : 'bg-[#0A0A1A] border-2 border-[#B8963E]/30 text-[#B8963E]/30'
+                }`}
+              >
+                {s}
               </div>
-            ))}
-          </div>
-        )}
-
-        {/* ─── STEP 1: Welcome ─── */}
-        {step === 1 && (
-          <div className="animate-fadeIn text-center">
-            <div className="text-7xl mb-6">🎉</div>
-            <h1 className="text-3xl font-bold text-cream mb-3">
-              ยินดีต้อนรับ!
-            </h1>
-            <p className="text-xl text-gold font-medium mb-2">
-              สวัสดี, {customer?.customerName || 'คุณลูกค้า'}!
-            </p>
-            <p className="text-cream/70 mb-2">
-              {customer?.businessName && `จาก ${customer.businessName}`}
-            </p>
-            <p className="text-cream/60 text-lg mb-8">
-              มาสร้าง Friday ของคุณกัน 🚀
-            </p>
-            <div className="bg-[#0F0F2A] border border-gold/20 rounded-2xl p-6 mb-8 text-left">
-              <p className="text-cream/80 text-sm leading-relaxed">
-                ภายใน 5 นาที Friday จะพร้อมรับ-ตอบแชทลูกค้า จัดการนัดหมาย และช่วยธุรกิจของคุณ 24 ชั่วโมงโดยไม่ต้องนอน 💪
-              </p>
+              {s < 6 && (
+                <div
+                  className={`flex-1 h-1 mx-1 md:mx-2 transition-all ${
+                    s < step ? 'bg-[#B8963E]' : 'bg-[#B8963E]/20'
+                  }`}
+                />
+              )}
             </div>
+          ))}
+        </div>
+        <div className="flex justify-between text-xs text-[#EDE3D0]/60 px-1">
+          <span>ยินดีต้อนรับ</span>
+          <span>ชื่อ AI</span>
+          <span>ฟีเจอร์</span>
+          <span>Telegram</span>
+          <span>กำลังตั้งค่า</span>
+          <span>เสร็จ!</span>
+        </div>
+      </div>
+
+      {/* Step Content */}
+      <div className="max-w-2xl mx-auto bg-[#0A0A1A] border border-[#B8963E]/30 rounded-2xl p-6 md:p-8">
+        {/* Step 1: Welcome */}
+        {step === 1 && (
+          <div className="text-center py-8">
+            <div className="text-7xl mb-6">🎉</div>
+            <h2 className="text-3xl font-bold text-[#B8963E] mb-4">
+              ยินดีต้อนรับ{customerName !== 'ลูกค้า' ? ` ${customerName}` : ''}!
+            </h2>
+            <p className="text-xl text-[#EDE3D0] mb-4">
+              มาสร้าง Friday ของคุณกัน
+            </p>
+            <p className="text-[#EDE3D0]/70 mb-8">
+              ใช้เวลาแค่ 2-3 นาที เพื่อตั้งค่า AI Assistant สำหรับ{businessName}
+            </p>
             <button
               onClick={() => setStep(2)}
-              className="w-full bg-gradient-to-r from-gold to-yellow-500 text-navy font-bold py-4 rounded-2xl text-lg hover:opacity-90 transition-all active:scale-95"
+              className="bg-[#B8963E] text-[#0A0A1A] px-10 py-4 rounded-full font-semibold hover:bg-[#B8963E]/90 transition-all"
             >
-              เริ่มเลย! →
+              เริ่มต้น 🚀
             </button>
           </div>
         )}
 
-        {/* ─── STEP 2: Name your AI ─── */}
+        {/* Step 2: Name Your AI */}
         {step === 2 && (
-          <div className="animate-fadeIn">
-            <div className="text-5xl text-center mb-6">🤖</div>
-            <h2 className="text-2xl font-bold text-cream text-center mb-2">
-              ตั้งชื่อ AI ของคุณ
-            </h2>
-            <p className="text-cream/60 text-center mb-8">
-              AI จะใช้ชื่อนี้แนะนำตัวกับลูกค้าของคุณ
+          <div className="space-y-6">
+            <h2 className="text-2xl font-bold text-[#B8963E] mb-4">ตั้งชื่อ AI ของคุณ</h2>
+            <p className="text-[#EDE3D0]/70 mb-6">
+              คุณจะเรียก AI ว่าอะไร?
             </p>
-            <div className="mb-6">
-              <label className="block text-cream/80 text-sm font-medium mb-2">
-                ชื่อ AI ของคุณ
-              </label>
+
+            <div>
               <input
                 type="text"
-                value={setup.agentName}
-                onChange={e => setSetup(s => ({ ...s, agentName: e.target.value }))}
+                value={formData.agentName}
+                onChange={(e) => updateField('agentName', e.target.value)}
+                className="w-full bg-[#0A0A1A] border border-[#B8963E]/30 rounded-lg px-4 py-4 text-xl text-[#EDE3D0] focus:outline-none focus:border-[#B8963E] transition-all text-center"
                 placeholder="Friday"
-                maxLength={30}
-                className="w-full bg-[#0F0F2A] border border-gold/30 rounded-xl px-4 py-4 text-cream text-lg focus:outline-none focus:border-gold transition-colors placeholder:text-cream/30"
               />
-              <p className="text-cream/40 text-xs mt-2">เช่น Friday, Nova, Aria, Max...</p>
-            </div>
-            <div className="bg-[#0F0F2A] border border-cream/10 rounded-xl p-4 mb-8">
-              <p className="text-cream/60 text-sm">
-                💡 <span className="text-gold">{setup.agentName || 'Friday'}</span> จะทักทายลูกค้าว่า
-                <br />
-                <span className="text-cream/80 italic">"สวัสดีครับ/ค่ะ ผม/หนู {setup.agentName || 'Friday'} AI Assistant ของ {customer?.businessName} ยินดีให้บริการครับ/ค่ะ"</span>
+              <p className="text-sm text-[#EDE3D0]/60 mt-3 text-center">
+                ชื่อนี้จะแสดงในการสนทนากับลูกค้า
               </p>
             </div>
-            <div className="flex gap-3">
+
+            <div className="flex gap-4 mt-8">
               <button
                 onClick={() => setStep(1)}
-                className="flex-1 border border-cream/20 text-cream/60 font-medium py-4 rounded-2xl hover:border-cream/40 transition-all"
+                className="flex-1 py-3 px-6 rounded-full border-2 border-[#B8963E] text-[#B8963E] font-semibold hover:bg-[#B8963E]/10 transition-all"
               >
-                ← ย้อนกลับ
+                ย้อนกลับ
               </button>
               <button
                 onClick={() => setStep(3)}
-                disabled={!setup.agentName.trim()}
-                className="flex-2 flex-grow-[2] bg-gradient-to-r from-gold to-yellow-500 text-navy font-bold py-4 rounded-2xl hover:opacity-90 transition-all disabled:opacity-40 active:scale-95"
+                disabled={!canProceed()}
+                className={`flex-1 py-3 px-6 rounded-full font-semibold transition-all ${
+                  canProceed()
+                    ? 'bg-[#B8963E] text-[#0A0A1A] hover:bg-[#B8963E]/90'
+                    : 'bg-[#B8963E]/30 text-[#0A0A1A]/50 cursor-not-allowed'
+                }`}
               >
-                ต่อไป →
+                ถัดไป
               </button>
             </div>
           </div>
         )}
 
-        {/* ─── STEP 3: Use Cases ─── */}
+        {/* Step 3: Use Cases */}
         {step === 3 && (
-          <div className="animate-fadeIn">
-            <div className="text-5xl text-center mb-6">⚡</div>
-            <h2 className="text-2xl font-bold text-cream text-center mb-2">
-              คุณต้องการให้ {setup.agentName} ช่วยอะไร?
-            </h2>
-            <p className="text-cream/60 text-center mb-8">
-              เลือกได้หลายข้อ (เปลี่ยนได้ภายหลัง)
-            </p>
-            <div className="space-y-3 mb-8">
-              {USE_CASE_OPTIONS.map(opt => (
-                <button
-                  key={opt.id}
-                  onClick={() => toggleUseCase(opt.value)}
-                  className={`w-full flex items-center gap-4 px-5 py-4 rounded-xl border transition-all text-left ${
-                    setup.useCases.includes(opt.value)
-                      ? 'bg-gold/10 border-gold text-cream'
-                      : 'bg-[#0F0F2A] border-cream/10 text-cream/70 hover:border-cream/30'
+          <div className="space-y-6">
+            <h2 className="text-2xl font-bold text-[#B8963E] mb-2">คุณต้องการให้ Friday ช่วยอะไร?</h2>
+            <p className="text-[#EDE3D0]/70 mb-4">เลือกได้มากกว่า 1 ข้อ</p>
+
+            <div className="space-y-3">
+              {useCaseOptions.map((option) => (
+                <label
+                  key={option.id}
+                  className={`flex items-center p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                    formData.useCases.includes(option.value)
+                      ? 'border-[#B8963E] bg-[#B8963E]/10'
+                      : 'border-[#B8963E]/20 hover:border-[#B8963E]/50'
                   }`}
                 >
-                  <div className={`w-6 h-6 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-all ${
-                    setup.useCases.includes(opt.value)
-                      ? 'bg-gold border-gold'
-                      : 'border-cream/30'
-                  }`}>
-                    {setup.useCases.includes(opt.value) && (
-                      <svg className="w-4 h-4 text-navy" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                      </svg>
-                    )}
-                  </div>
-                  <span className="font-medium text-lg">{opt.label}</span>
-                </button>
+                  <input
+                    type="checkbox"
+                    checked={formData.useCases.includes(option.value)}
+                    onChange={() => toggleUseCase(option.value)}
+                    className="mr-3 w-5 h-5 accent-[#B8963E]"
+                  />
+                  <span className="text-[#EDE3D0] font-medium">{option.label}</span>
+                </label>
               ))}
             </div>
-            <div className="flex gap-3">
+
+            <div className="flex gap-4 mt-8">
               <button
                 onClick={() => setStep(2)}
-                className="flex-1 border border-cream/20 text-cream/60 font-medium py-4 rounded-2xl hover:border-cream/40 transition-all"
+                className="flex-1 py-3 px-6 rounded-full border-2 border-[#B8963E] text-[#B8963E] font-semibold hover:bg-[#B8963E]/10 transition-all"
               >
-                ← ย้อนกลับ
+                ย้อนกลับ
               </button>
               <button
                 onClick={() => setStep(4)}
-                disabled={setup.useCases.length === 0}
-                className="flex-2 flex-grow-[2] bg-gradient-to-r from-gold to-yellow-500 text-navy font-bold py-4 rounded-2xl hover:opacity-90 transition-all disabled:opacity-40 active:scale-95"
+                disabled={!canProceed()}
+                className={`flex-1 py-3 px-6 rounded-full font-semibold transition-all ${
+                  canProceed()
+                    ? 'bg-[#B8963E] text-[#0A0A1A] hover:bg-[#B8963E]/90'
+                    : 'bg-[#B8963E]/30 text-[#0A0A1A]/50 cursor-not-allowed'
+                }`}
               >
-                ต่อไป →
+                ถัดไป
               </button>
             </div>
           </div>
         )}
 
-        {/* ─── STEP 4: Connect Telegram ─── */}
+        {/* Step 4: Connect Telegram */}
         {step === 4 && (
-          <div className="animate-fadeIn">
-            <div className="text-5xl text-center mb-6">📱</div>
-            <h2 className="text-2xl font-bold text-cream text-center mb-2">
-              เชื่อมต่อ Telegram
-            </h2>
-            <p className="text-cream/60 text-center mb-6">
-              สร้าง Bot Telegram สำหรับ {setup.agentName}
-            </p>
+          <div className="space-y-6">
+            <h2 className="text-2xl font-bold text-[#B8963E] mb-4">เชื่อมต่อ Telegram</h2>
 
-            {/* Step-by-step guide */}
-            <div className="bg-[#0F0F2A] border border-cream/10 rounded-xl p-5 mb-6 space-y-4">
-              {[
-                { n: 1, text: 'เปิด Telegram แล้วค้นหา', bold: '@BotFather' },
-                { n: 2, text: 'พิมพ์', bold: '/newbot' },
-                { n: 3, text: 'ตั้งชื่อ Bot เช่น', bold: `${setup.agentName} Bot` },
-                { n: 4, text: 'ตั้ง username (ต้องลงท้ายด้วย', bold: '_bot)' },
-                { n: 5, text: 'Copy', bold: 'API Token' + ' ที่ได้รับ' },
-              ].map(item => (
-                <div key={item.n} className="flex gap-3 items-start">
-                  <div className="w-6 h-6 rounded-full bg-gold/20 border border-gold/40 flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <span className="text-gold text-xs font-bold">{item.n}</span>
-                  </div>
-                  <p className="text-cream/70 text-sm">
-                    {item.text} <span className="text-gold font-medium">{item.bold}</span>
-                  </p>
+            {/* Instructions */}
+            <div className="bg-[#0A0A1A] border border-[#B8963E]/20 rounded-xl p-5 space-y-4">
+              <p className="text-[#EDE3D0]/80 font-medium">วิธีสร้าง Bot:</p>
+              <ol className="space-y-3 text-[#EDE3D0]/70">
+                <li className="flex gap-3">
+                  <span className="text-[#B8963E] font-bold">1.</span>
+                  <span>เปิด Telegram ค้นหา <strong className="text-[#EDE3D0]">@BotFather</strong></span>
+                </li>
+                <li className="flex gap-3">
+                  <span className="text-[#B8963E] font-bold">2.</span>
+                  <span>พิมพ์ <code className="bg-[#B8963E]/20 px-2 py-0.5 rounded text-[#B8963E]">/newbot</code> แล้วตั้งชื่อ bot</span>
+                </li>
+                <li className="flex gap-3">
+                  <span className="text-[#B8963E] font-bold">3.</span>
+                  <span>Copy token ที่ได้รับ (รูปแบบ: <code className="bg-[#B8963E]/20 px-2 py-0.5 rounded text-[#B8963E]">123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11</code>)</span>
+                </li>
+                <li className="flex gap-3">
+                  <span className="text-[#B8963E] font-bold">4.</span>
+                  <span>วาง token ในช่องด้านล่าง</span>
+                </li>
+              </ol>
+            </div>
+
+            {/* Token Input */}
+            <div>
+              <label className="block text-[#EDE3D0] mb-2 font-medium">Bot Token</label>
+              <div className="flex gap-3">
+                <input
+                  type="text"
+                  value={formData.botToken}
+                  onChange={(e) => {
+                    updateField('botToken', e.target.value)
+                    setVerified(false)
+                  }}
+                  className="flex-1 bg-[#0A0A1A] border border-[#B8963E]/30 rounded-lg px-4 py-3 text-[#EDE3D0] focus:outline-none focus:border-[#B8963E] transition-all font-mono text-sm"
+                  placeholder="วาง token ที่นี่..."
+                />
+                <button
+                  onClick={verifyToken}
+                  disabled={!formData.botToken || verifying}
+                  className={`px-5 py-3 rounded-lg font-medium transition-all ${
+                    formData.botToken && !verifying
+                      ? 'bg-[#B8963E] text-[#0A0A1A] hover:bg-[#B8963E]/90'
+                      : 'bg-[#B8963E]/30 text-[#0A0A1A]/50 cursor-not-allowed'
+                  }`}
+                >
+                  {verifying ? 'กำลังตรวจ...' : 'ทดสอบ Token'}
+                </button>
+              </div>
+              {error && (
+                <p className="text-red-400 text-sm mt-2">{error}</p>
+              )}
+              {verified && (
+                <div className="flex items-center gap-2 text-green-400 mt-3">
+                  <span>✅</span>
+                  <span>เชื่อมต่อสำเร็จ! Bot: <strong>{formData.botName}</strong> (@{formData.botUsername})</span>
                 </div>
-              ))}
+              )}
             </div>
 
-            {/* Token input */}
-            <div className="mb-4">
-              <label className="block text-cream/80 text-sm font-medium mb-2">
-                วาง API Token ที่นี่
-              </label>
-              <input
-                type="text"
-                value={setup.botToken}
-                onChange={e => {
-                  setSetup(s => ({ ...s, botToken: e.target.value, botUsername: '', botName: '' }))
-                  setTokenValid(null)
-                  setTokenError2('')
-                }}
-                placeholder="1234567890:ABCdefGHIjklMNOpqrSTUvwxYZ"
-                className="w-full bg-[#0F0F2A] border border-gold/30 rounded-xl px-4 py-4 text-cream text-sm focus:outline-none focus:border-gold transition-colors placeholder:text-cream/30 font-mono"
-              />
-            </div>
-
-            {/* Verify button */}
-            <button
-              onClick={verifyBotToken}
-              disabled={!setup.botToken.trim() || verifyingToken}
-              className="w-full border-2 border-gold/50 text-gold font-semibold py-3 rounded-xl hover:bg-gold/10 transition-all disabled:opacity-40 mb-4 flex items-center justify-center gap-2"
-            >
-              {verifyingToken ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-gold border-t-transparent rounded-full animate-spin" />
-                  กำลังทดสอบ...
-                </>
-              ) : '🔍 ทดสอบ Token'}
-            </button>
-
-            {/* Validation feedback */}
-            {tokenValid === true && (
-              <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-4 mb-4">
-                <p className="text-green-400 font-medium">✅ Token ถูกต้อง!</p>
-                <p className="text-cream/60 text-sm">Bot: <span className="text-cream">{setup.botName}</span></p>
-                <p className="text-cream/60 text-sm">Username: <span className="text-gold">@{setup.botUsername}</span></p>
-              </div>
-            )}
-            {tokenValid === false && (
-              <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 mb-4">
-                <p className="text-red-400">❌ {tokenError2}</p>
-              </div>
-            )}
-
-            <div className="flex gap-3">
+            <div className="flex gap-4 mt-8">
               <button
                 onClick={() => setStep(3)}
-                className="flex-1 border border-cream/20 text-cream/60 font-medium py-4 rounded-2xl hover:border-cream/40 transition-all"
+                className="flex-1 py-3 px-6 rounded-full border-2 border-[#B8963E] text-[#B8963E] font-semibold hover:bg-[#B8963E]/10 transition-all"
               >
-                ← ย้อนกลับ
+                ย้อนกลับ
               </button>
               <button
                 onClick={completeSetup}
-                disabled={tokenValid !== true}
-                className="flex-2 flex-grow-[2] bg-gradient-to-r from-gold to-yellow-500 text-navy font-bold py-4 rounded-2xl hover:opacity-90 transition-all disabled:opacity-40 active:scale-95"
+                disabled={!verified || loading}
+                className={`flex-1 py-3 px-6 rounded-full font-semibold transition-all ${
+                  verified && !loading
+                    ? 'bg-[#B8963E] text-[#0A0A1A] hover:bg-[#B8963E]/90'
+                    : 'bg-[#B8963E]/30 text-[#0A0A1A]/50 cursor-not-allowed'
+                }`}
               >
-                เสร็จสิ้น! 🚀
+                {loading ? 'กำลังตั้งค่า...' : 'เชื่อมต่อ & สร้าง'}
               </button>
             </div>
           </div>
         )}
 
-        {/* ─── STEP 5: Loading ─── */}
+        {/* Step 5: Loading */}
         {step === 5 && (
-          <div className="animate-fadeIn text-center min-h-[60vh] flex flex-col items-center justify-center">
-            <div className="text-7xl mb-6 animate-pulse">✨</div>
-            <h2 className="text-2xl font-bold text-cream mb-2">
+          <div className="text-center py-12">
+            <div className="mb-8">
+              <div className="w-20 h-20 mx-auto border-4 border-[#B8963E]/30 border-t-[#B8963E] rounded-full animate-spin" />
+            </div>
+            <h2 className="text-2xl font-bold text-[#B8963E] mb-4">
               Friday กำลังตื่นขึ้น...
             </h2>
-            <p className="text-cream/60 mb-10">
-              กำลังตั้งค่าระบบ AI ของคุณ
+            <p className="text-[#EDE3D0]/70">
+              กำลังตั้งค่าระบบให้คุณ กรุณารอสักครู่ ⏳
             </p>
-            <div className="w-full max-w-xs">
-              <div className="bg-[#0F0F2A] rounded-full h-3 overflow-hidden border border-cream/10">
-                <div
-                  className="h-full bg-gradient-to-r from-gold to-yellow-400 rounded-full transition-all duration-500"
-                  style={{ width: `${progress}%` }}
-                />
-              </div>
-              <p className="text-cream/40 text-sm mt-3">{Math.round(progress)}%</p>
-            </div>
-            <div className="mt-10 space-y-2 text-left">
-              {[
-                { label: 'ตั้งค่า AI Agent', done: progress > 20 },
-                { label: 'เชื่อมต่อ Telegram Bot', done: progress > 50 },
-                { label: 'เปิดใช้งานระบบ', done: progress > 80 },
-              ].map(item => (
-                <div key={item.label} className="flex items-center gap-3 text-sm">
-                  <div className={`w-5 h-5 rounded-full flex items-center justify-center transition-all ${
-                    item.done ? 'bg-gold text-navy' : 'bg-cream/10 text-cream/30'
-                  }`}>
-                    {item.done ? '✓' : '○'}
-                  </div>
-                  <span className={item.done ? 'text-cream/80' : 'text-cream/30'}>{item.label}</span>
-                </div>
-              ))}
-            </div>
           </div>
         )}
 
-        {/* ─── STEP 6: Success ─── */}
+        {/* Step 6: Success */}
         {step === 6 && (
-          <div className="animate-fadeIn text-center">
-            <div className="text-7xl mb-4">🎉</div>
-            <h2 className="text-3xl font-bold text-cream mb-2">
-              {setup.agentName} พร้อมแล้ว!
+          <div className="text-center py-8">
+            <div className="text-7xl mb-6">🎉</div>
+            <h2 className="text-3xl font-bold text-[#B8963E] mb-4">
+              Friday พร้อมแล้ว!
             </h2>
-            <p className="text-gold font-medium mb-8">
-              AI ของคุณกำลังรอรับลูกค้าอยู่แล้ว
+            <p className="text-xl text-[#EDE3D0] mb-8">
+              {formData.agentName} พร้อมช่วยเหลือคุณแล้ว
             </p>
 
-            {/* Bot link card */}
-            <div className="bg-[#0F0F2A] border border-gold/30 rounded-2xl p-6 mb-6 text-left">
-              <p className="text-cream/60 text-sm mb-2">Bot ของคุณ</p>
-              <a
-                href={`https://t.me/${setup.botUsername}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-gold text-xl font-bold hover:underline"
-              >
-                t.me/{setup.botUsername}
-              </a>
-              <p className="text-cream/40 text-xs mt-2">คลิกเพื่อทดสอบใน Telegram</p>
-            </div>
-
-            {/* Test button */}
+            {/* Bot Link */}
             <a
-              href={`https://t.me/${setup.botUsername}`}
+              href={`https://t.me/${formData.botUsername}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="block w-full bg-gradient-to-r from-gold to-yellow-500 text-navy font-bold py-4 rounded-2xl text-lg hover:opacity-90 transition-all mb-4 text-center"
+              className="inline-flex items-center gap-3 bg-[#B8963E] text-[#0A0A1A] px-8 py-4 rounded-full font-semibold hover:bg-[#B8963E]/90 transition-all mb-8"
             >
-              📱 ส่งข้อความทดสอบ
+              <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.562 8.161c-.18 1.897-.962 6.502-1.359 8.627-.168.9-.5 1.201-.82 1.23-.696.064-1.225-.46-1.901-.903-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.911.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
+              </svg>
+              เริ่มคุยกับ Friday
             </a>
 
-            {/* Coming soon channels */}
-            <div className="bg-[#0F0F2A] border border-cream/10 rounded-2xl p-5 text-left">
-              <p className="text-cream/60 text-sm font-medium mb-4">ช่องทางเพิ่มเติม (เร็วๆ นี้)</p>
-              <div className="space-y-3">
-                {[
-                  { name: 'LINE OA', icon: '💚' },
-                  { name: 'Instagram DM', icon: '📸' },
-                  { name: 'Facebook Messenger', icon: '💙' },
-                ].map(ch => (
-                  <div key={ch.name} className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <span>{ch.icon}</span>
-                      <span className="text-cream/60 text-sm">{ch.name}</span>
-                    </div>
-                    <span className="text-xs bg-gold/20 text-gold px-2 py-1 rounded-full">เร็วๆ นี้</span>
-                  </div>
-                ))}
+            {/* Coming Soon Badges */}
+            <div className="flex justify-center gap-4">
+              <div className="bg-[#0A0A1A] border border-[#B8963E]/20 rounded-full px-5 py-2 text-[#EDE3D0]/60 text-sm">
+                📱 LINE — เร็วๆ นี้
+              </div>
+              <div className="bg-[#0A0A1A] border border-[#B8963E]/20 rounded-full px-5 py-2 text-[#EDE3D0]/60 text-sm">
+                📸 Instagram — เร็วๆ นี้
               </div>
             </div>
 
-            <p className="text-cream/30 text-xs mt-6">
-              หากต้องการความช่วยเหลือ ติดต่อ @FridaySupport
+            <p className="text-[#EDE3D0]/50 text-sm mt-8">
+              คุณสามารถเริ่มใช้งานได้ทันทีที่ t.me/{formData.botUsername}
             </p>
           </div>
         )}
-
       </div>
-
-      <style jsx>{`
-        @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(16px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        .animate-fadeIn {
-          animation: fadeIn 0.4s ease-out;
-        }
-      `}</style>
     </div>
   )
 }
@@ -543,11 +439,11 @@ function SetupWizard() {
 export default function SetupPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-navy flex items-center justify-center">
-        <div className="w-16 h-16 border-4 border-gold border-t-transparent rounded-full animate-spin" />
+      <div className="min-h-screen bg-[#0A0A1A] flex items-center justify-center">
+        <div className="text-[#B8963E] text-xl">กำลังโหลด...</div>
       </div>
     }>
-      <SetupWizard />
+      <SetupForm />
     </Suspense>
   )
 }
