@@ -1,8 +1,8 @@
 'use client'
 
 export default function Hero() {
-  const scrollToWaitlist = () => {
-    document.getElementById('waitlist')?.scrollIntoView({ behavior: 'smooth' })
+  const scrollToOnboard = () => {
+    document.getElementById('onboard')?.scrollIntoView({ behavior: 'smooth' })
   }
 
   return (
@@ -16,33 +16,34 @@ export default function Hero() {
       <div className="container-custom text-center relative z-10">
         <div className="animate-fadeInUp">
           <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold mb-6 leading-tight">
-            พนักงานคนแรกที่ทุก CEO<br />
+            พนักงานคนแรกที่ทุก CEO
+            <br />
             <span className="gradient-text">ควรจ้าง</span>
           </h1>
           
           <p className="text-lg md:text-2xl text-cream/80 mb-4 max-w-3xl mx-auto leading-relaxed">
-            AI Executive Assistant ที่ทำงานให้คุณ <span className="text-gold font-semibold">24/7</span><br />
-            <span className="text-base md:text-xl">ไม่มีวันลา ไม่มีวันลาออก</span>
+            AI Assistant ที่จำทุกอย่าง ทำงาน 24/7 และไม่มีวันลาออก
           </p>
 
           <div className="mb-8 md:mb-12">
             <p className="text-xl md:text-3xl font-semibold text-gold">
-              Setup ฿35,000 + <span className="text-lg text-cream/60">฿5,000/เดือน</span>
+              เริ่มต้นเพียง ฿1,490/เดือน • ทดลองฟรี 7 วัน
             </p>
           </div>
 
           <button
-            onClick={scrollToWaitlist}
+            onClick={scrollToOnboard}
             className="bg-gold hover:bg-gold/90 text-navy px-8 md:px-12 py-4 md:py-5 rounded-full font-semibold text-lg md:text-xl transition-all duration-300 transform hover:scale-105 shadow-2xl hover:shadow-gold/50"
           >
-            สมัครรับสิทธิ์ Early Access
+            เริ่มทดลองฟรี 7 วัน
           </button>
 
           <p className="mt-6 text-sm text-cream/50">
-            🎁 Early Access รับส่วนลด 40% ตลอดชีพ
+            ไม่ต้องใช้บัตรเครดิต • ยกเลิกได้ทุกเมื่อ
           </p>
         </div>
       </div>
     </section>
   )
 }
+
