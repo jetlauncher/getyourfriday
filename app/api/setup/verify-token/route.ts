@@ -4,45 +4,40 @@ export async function POST(request: NextRequest) {
   try {
     const { botToken } = await request.json()
 
-    if (!botToken || typeof botToken !== 'string') {
-      return NextResponse.json({ valid: false, message: 'กรุณาระบุ Bot Token' })
+    if (!botToken) {
+      return NextResponse.json(
+        { valid: false, error: 'กรุณาระบุ bot token' },
+        { status: 400 }
+      )
     }
 
-    const cleanToken = botToken.trim()
-
-    // Call Telegram API to validate token
-    const res = await fetch(`https://api.telegram.org/bot${cleanToken}/getMe`, {
+    // Call Telegram API to verify token
+    const response = await fetch(`https://api.telegram.org/bot${botToken}/getMe`, {
       method: 'GET',
-      cache: 'no-store',
+      headers: {
+        'Content-Type': 'application/json',
+      },
     })
 
-    if (!res.ok) {
+    const data = await response.json()
+
+    if (data.ok) {
       return NextResponse.json({
-        valid: false,
-        message: 'Token ไม่ถูกต้อง กรุณาตรวจสอบและลองใหม่',
+        valid: true,
+        botName: data.result.first_name,
+        username: data.result.username,
       })
+    } else {
+      return NextResponse.json(
+        { valid: false, error: 'Token ไม่ถูกต้อง กรุณาตรวจสอบและลองใหม่' },
+        { status: 400 }
+      )
     }
-
-    const data = await res.json()
-
-    if (!data.ok || !data.result) {
-      return NextResponse.json({
-        valid: false,
-        message: 'Token ไม่ถูกต้อง กรุณาตรวจสอบและลองใหม่',
-      })
-    }
-
-    return NextResponse.json({
-      valid: true,
-      botName: data.result.first_name,
-      username: data.result.username,
-      id: data.result.id,
-    })
-  } catch (err) {
-    console.error('verify-token error:', err)
-    return NextResponse.json({
-      valid: false,
-      message: 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง',
-    })
+  } catch (error) {
+    console.error('Verify token error:', error)
+    return NextResponse.json(
+      { valid: false, error: 'เกิดข้อผิดพลาด กรุณาลองใหม่' },
+      { status: 500 }
+    )
   }
 }
