@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
+import Stripe from 'stripe'
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
+  apiVersion: '2023-10-16' as any,
+})
 
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '8477111494:AAGRT3BQE3MMF6_uPyBaqRCfoQEhHKv2flg'
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID || '1460936021'
+const PRICE_ID = 'price_1T1ow7L635dy15nN4Fuy1Qvp'
 
 async function sendTelegramNotification(data: any) {
   const needs = Array.isArray(data.needs) ? data.needs.join(', ') : data.needs
@@ -25,23 +31,17 @@ ${data.mainNeed}
 
 💰 *แพ็กเกจ:* ฿1,490/เดือน (ทดลองฟรี 7 วัน)
 
-⚡ *Action:* Provision agent NOW!`
+⏳ *Status:* กำลังไปชำระเงิน Stripe...`
 
-  try {
-    const res = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: TELEGRAM_CHAT_ID,
-        text: message,
-        parse_mode: 'Markdown',
-      }),
-    })
-    return res.ok
-  } catch (error) {
-    console.error('Telegram notification failed:', error)
-    return false
-  }
+  await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      chat_id: TELEGRAM_CHAT_ID,
+      text: message,
+      parse_mode: 'Markdown',
+    }),
+  })
 }
 
 export async function POST(request: NextRequest) {
@@ -52,33 +52,46 @@ export async function POST(request: NextRequest) {
     const required = ['businessName', 'industry', 'teamSize', 'needs', 'channels', 'customerName', 'phone', 'email', 'mainNeed']
     for (const field of required) {
       if (!data[field]) {
-        return NextResponse.json(
-          { error: `กรุณากรอก ${field}` },
-          { status: 400 }
-        )
+        return NextResponse.json({ error: `กรุณากรอก ${field}` }, { status: 400 })
       }
     }
 
-    // Validate email
-    if (!data.email.includes('@')) {
-      return NextResponse.json(
-        { error: 'กรุณากรอกอีเมลที่ถูกต้อง' },
-        { status: 400 }
-      )
-    }
-
-    // Send Telegram notification to Jedi
+    // Notify Jedi on Telegram
     await sendTelegramNotification(data)
 
-    return NextResponse.json(
-      { success: true, message: 'ลงทะเบียนสำเร็จ! เราจะติดต่อกลับภายใน 10 นาที' },
-      { status: 200 }
-    )
-  } catch (error) {
+    // Create Stripe Checkout Session with customer metadata
+    const session = await stripe.checkout.sessions.create({
+      mode: 'subscription',
+      payment_method_types: ['card'],
+      line_items: [{ price: PRICE_ID, quantity: 1 }],
+      customer_email: data.email,
+      subscription_data: {
+        trial_period_days: 7,
+        metadata: {
+          customerName: data.customerName,
+          telegramUsername: data.telegramUsername || '',
+          lineOAID: data.lineOAID || '',
+          businessName: data.businessName,
+          industry: data.industry,
+          phone: data.phone,
+          channels: Array.isArray(data.channels) ? data.channels.join(',') : data.channels,
+          mainNeed: data.mainNeed.substring(0, 490),
+        },
+      },
+      metadata: {
+        customerName: data.customerName,
+        telegramUsername: data.telegramUsername || '',
+        businessName: data.businessName,
+        phone: data.phone,
+        channels: Array.isArray(data.channels) ? data.channels.join(',') : data.channels,
+      },
+      success_url: 'https://getyourfriday.ai/success',
+      cancel_url: 'https://getyourfriday.ai/onboard',
+    })
+
+    return NextResponse.json({ url: session.url }, { status: 200 })
+  } catch (error: any) {
     console.error('Onboard error:', error)
-    return NextResponse.json(
-      { error: 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง' }, { status: 500 })
   }
 }
