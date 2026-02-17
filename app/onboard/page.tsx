@@ -123,7 +123,7 @@ function OnboardForm() {
       })
 
       if (response.ok) {
-        window.location.href = 'https://buy.stripe.com/5kQ00ka7j4dG9z77zu0ZW0Y'
+        const responseData = await response.json(); window.location.href = responseData.url
       } else {
         alert('เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง')
       }
